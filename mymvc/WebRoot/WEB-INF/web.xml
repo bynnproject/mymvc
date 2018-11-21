@@ -5,10 +5,10 @@
     version="3.0">
     <servlet>
         <servlet-name>MySpringMVC</servlet-name>
-        <servlet-class>com.liugh.servlet.MyDispatcherServlet</servlet-class>
+        <servlet-class>com.mymvc.servlet.MyDispatcherServlet</servlet-class>
         <init-param>
             <param-name>packagesToScan</param-name>
-            <param-value>com.liugh.core</param-value>
+            <param-value>com.mymvc.core</param-value>
         </init-param>
         <init-param>
             <param-name>suffix</param-name>

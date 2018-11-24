@@ -9,7 +9,8 @@
 * 各个注解 （半完成）
 ** responsebody （完成）
 ** requestbody （未开始）
+** requestParam （未开始）
 ** requestMapping （完成）
 ** controller （完成）
-** resource （未开始）
-** service （未开始）
+** autowire （完成）
+** service （完成）

@@ -7,17 +7,24 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.mymvc.annotation.MyAutowired;
 import com.mymvc.annotation.MyController;
 import com.mymvc.annotation.MyRequestMapping;
 import com.mymvc.annotation.MyRequestParam;
 import com.mymvc.annotation.MyResponsebody;
 import com.mymvc.core.pojo.User;
+import com.mymvc.core.serviceImpl.UserServiceImpl;
 
 @MyController
 @MyRequestMapping("/test")
 public class TestController {
+	
+	@MyAutowired("user")
+	public UserServiceImpl userServiceImpl;
 
-     
+   
+
+    
      
      @MyRequestMapping("/string")
      //@MyResponsebody
@@ -37,6 +44,16 @@ public class TestController {
 
         
     	 return map;
+     }
+     
+     @MyRequestMapping("/userservice")
+     @MyResponsebody
+     public  User userservice(HttpServletRequest request, HttpServletResponse response){
+    	 User user = userServiceImpl.getUser();
+        
+
+        
+        return user;
      }
      
      

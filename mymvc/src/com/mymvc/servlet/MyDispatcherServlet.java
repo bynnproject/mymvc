@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.net.URL;
@@ -28,9 +29,13 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.PrefixFileFilter;
 
 import com.alibaba.fastjson.JSONObject;
+import com.mymvc.annotation.MyAutowired;
 import com.mymvc.annotation.MyController;
 import com.mymvc.annotation.MyRequestMapping;
 import com.mymvc.annotation.MyResponsebody;
+import com.mymvc.annotation.MyService;
+import com.mymvc.core.controller.TestController;
+import com.mymvc.core.serviceImpl.UserServiceImpl;
 
 public class MyDispatcherServlet extends HttpServlet{
 	
@@ -67,8 +72,13 @@ public class MyDispatcherServlet extends HttpServlet{
         //3.拿到扫描到的类,通过反射机制,实例化,并且放到ioc容器中(k-v  beanName-bean) beanName默认是首字母小写
         doInstance();
 
-        //4.初始化HandlerMapping(将url和method对应上)
+        //4.进行依赖注入
+        doIoc();
+        
+        //5.初始化HandlerMapping(将url和method对应上)
         initHandlerMapping();
+        
+        
 
     }
 
@@ -97,6 +107,7 @@ public class MyDispatcherServlet extends HttpServlet{
         String contextPath = req.getContextPath();
 
         url=url.replace(contextPath, "").replaceAll("/+", "/");
+        System.out.println("dispatcher url :" + url);
 
         if(!this.handlerMapping.containsKey(url)){
             resp.getWriter().write("404 NOT FOUND!");
@@ -137,6 +148,8 @@ public class MyDispatcherServlet extends HttpServlet{
         }  
         //利用反射机制来调用
         try {
+        	System.out.println("url :" + url);
+        	System.out.println("object :" + this.controllerMap.get(url));
            Object object = method.invoke(this.controllerMap.get(url), paramValues);//第一个参数是method所对应的实例 在ioc容器中
            if(method.isAnnotationPresent(MyResponsebody.class)){
         	   if(!(null == object)){
@@ -186,11 +199,20 @@ public class MyDispatcherServlet extends HttpServlet{
         }   
         for (String className : classNames) {
             try {
-                //把类搞出来,反射来实例化(只有加@MyController需要实例化)
+                //通过反射机制，将controllr注解和service注解的类获得，放在map上
                 Class<?> clazz =Class.forName(className);
                if(clazz.isAnnotationPresent(MyController.class)){
                     ioc.put(toLowerFirstWord(clazz.getSimpleName()),clazz.newInstance());
+                }else if(clazz.isAnnotationPresent(MyService.class)){
+                	String serviceName = clazz.getAnnotation(MyService.class).value();
+                	if(serviceName.equals("") || serviceName == null){
+                		ioc.put(toLowerFirstWord(clazz.getSimpleName()),clazz.newInstance());
+                	}else {
+                		ioc.put(serviceName,clazz.newInstance());
+                	}
+                	
                 }else{
+                
                     continue;
                 }
 
@@ -228,8 +250,7 @@ public class MyDispatcherServlet extends HttpServlet{
 
                     url =(baseUrl+"/"+url).replaceAll("/+", "/");
                     handlerMapping.put(url,method);
-                    controllerMap.put(url,clazz.newInstance());
-                    System.out.println(url+","+method);
+                    controllerMap.put(url,entry.getValue());
                 }
 
             }
@@ -238,6 +259,35 @@ public class MyDispatcherServlet extends HttpServlet{
             e.printStackTrace();
         }
 
+    }
+    
+    private void doIoc(){
+    	if(ioc.isEmpty()) return ;
+    	for(Entry<String, Object> entry : ioc.entrySet()){
+    		Field[] fields = entry.getValue().getClass().getDeclaredFields();
+    		for(Field field : fields){
+    			 field.setAccessible(true);
+    			if(field.isAnnotationPresent(MyAutowired.class)){
+    				String autowiredValueName = field.getAnnotation(MyAutowired.class).value();
+    				if(autowiredValueName == null || autowiredValueName.equals("")){
+    					autowiredValueName = toLowerFirstWord(field.getType().getSimpleName());
+    				}
+    				field.setAccessible(true);
+    				try {
+    					field.set(entry.getValue(), ioc.get(autowiredValueName));
+    					
+					} catch (IllegalArgumentException e) {
+						// TODO: handle exception
+						e.printStackTrace();
+					}catch (IllegalAccessException  e) {
+						// TODO: handle exception
+						e.printStackTrace();
+					}
+    			}
+    		}
+    		
+    	}
+    	
     }
 
     /**

@@ -7,6 +7,7 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.alibaba.fastjson.JSONObject;
 import com.mymvc.annotation.MyAutowired;
 import com.mymvc.annotation.MyController;
 import com.mymvc.annotation.MyRequestMapping;
@@ -54,6 +55,17 @@ public class TestController {
 
         
         return user;
+     }
+     
+     @MyRequestMapping("param")
+     @MyResponsebody
+     public Map paramtest(@MyRequestParam("d")String b, Integer a, Integer c,HttpServletRequest request){
+    	 Map<String ,Object> map = new HashMap<String, Object>();
+    	 map.put("a", a);
+    	 map.put("b", b);
+    	 map.put("c", c);
+    	 
+    	 return map;
      }
      
      

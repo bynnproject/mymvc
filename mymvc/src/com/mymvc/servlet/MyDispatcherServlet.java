@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 import java.net.URL;
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.mymvc.annotation.MyAutowired;
 import com.mymvc.annotation.MyController;
 import com.mymvc.annotation.MyRequestMapping;
+import com.mymvc.annotation.MyRequestParam;
 import com.mymvc.annotation.MyResponsebody;
 import com.mymvc.annotation.MyService;
 import com.mymvc.core.controller.TestController;
@@ -39,7 +41,7 @@ import com.mymvc.core.serviceImpl.UserServiceImpl;
 
 public class MyDispatcherServlet extends HttpServlet{
 	
-    //放类名
+	 //放类名
     private List<String> classNames = new ArrayList<String>();
 
     //spring的ioc容器
@@ -98,11 +100,12 @@ public class MyDispatcherServlet extends HttpServlet{
 
     }
 
-    private void doDispatch(HttpServletRequest req, HttpServletResponse resp) throws Exception {
+   /* private void doDispatch(HttpServletRequest req, HttpServletResponse resp) throws Exception {
         if(handlerMapping.isEmpty()){
             return;
         }
 
+        
         String url =req.getRequestURI();
         String contextPath = req.getContextPath();
 
@@ -124,12 +127,12 @@ public class MyDispatcherServlet extends HttpServlet{
 
         //保存参数值
         Object [] paramValues= new Object[parameterTypes.length];
-
+        System.out.println(">>>>>>>>>>>>>>>parameterTypes.length :" + parameterTypes.length);
         //方法的参数列表
         for (int i = 0; i<parameterTypes.length; i++){  
             //根据参数名称，做某些处理  
             String requestParam = parameterTypes[i].getSimpleName();  
-
+            System.out.println(">>>>>>>>>>>>>>>requestParam :" + requestParam);
             if (requestParam.equals("HttpServletRequest")){  
                 //参数类型已明确，这边强转类型  
                 paramValues[i]=req;
@@ -143,6 +146,10 @@ public class MyDispatcherServlet extends HttpServlet{
                 for (Entry<String, String[]> param : parameterMap.entrySet()) {
                     String value =Arrays.toString(param.getValue()).replaceAll("\\[|\\]", "").replaceAll(",\\s", ",");
                     paramValues[i]=value;
+                    for(String aString : param.getValue()){
+                    	System.out.println("param string[] : " + aString);
+                    }
+                    System.out.println(">>>>>>>>>>>>>>>value :" + value);
                 }
             }
         }  
@@ -167,6 +174,106 @@ public class MyDispatcherServlet extends HttpServlet{
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }*/
+    
+    
+      
+    private void doDispatch(HttpServletRequest req, HttpServletResponse resp) throws Exception {
+    	 //判断是否url映射的方法是否为空
+    	if(handlerMapping.isEmpty()){
+             return;
+         }
+    	
+    	 String url =req.getRequestURI();
+         String contextPath = req.getContextPath();
+
+         url=url.replace(contextPath, "").replaceAll("/+", "/");
+
+         if(!this.handlerMapping.containsKey(url)){
+             resp.getWriter().write("404 NOT FOUND!");
+             return;
+         }
+
+         Method method =this.handlerMapping.get(url);
+         
+         //获取方法的参数列表
+         Class<?>[] parameterTypes = method.getParameterTypes();
+
+         //获取请求的参数
+         Map<String, String[]> parameterMap = req.getParameterMap();
+
+         //保存参数值
+         Object [] paramValues= new Object[parameterTypes.length];
+         
+         Parameter[] parameters = method.getParameters();
+         
+          
+        	 
+         for (int i = 0; i<parameterTypes.length; i++){  
+        	 String requestParam = parameterTypes[i].getSimpleName(); 
+        	 
+        	 if (requestParam.equals("HttpServletRequest")){  
+                 //参数类型已明确，这边强转类型  
+                 paramValues[i]=req;
+                 System.out.println("request :" + i);
+                 continue;  
+             }  
+             if (requestParam.equals("HttpServletResponse")){  
+                 paramValues[i]=resp;
+                 System.out.println("response :" + i);
+                 continue;  
+             }
+             for(Map.Entry<String, String[]> entry : parameterMap.entrySet()){
+            	 
+            	 if(parameters[i].isAnnotationPresent(MyRequestParam.class)){
+            		 String annotationValue = ((MyRequestParam)parameters[i].getAnnotation(MyRequestParam.class)).value();
+            	    if(annotationValue.equals(entry.getKey())){
+            	    	
+            	    	String value =Arrays.toString(entry.getValue()).replaceAll("\\[|\\]", "").replaceAll(",\\s", ",");
+               		    paramValues[i] = value;
+               		    if(parameters[i].getType().toString().equals("class java.lang.Integer"))
+               		    	paramValues[i] =Integer.parseInt(value) ;
+            	       continue;
+            	    }
+            	 }
+            	 
+            	 
+            	 if(parameters[i].getName().equals(entry.getKey())){
+            		 String value =Arrays.toString(entry.getValue()).replaceAll("\\[|\\]", "").replaceAll(",\\s", ",");
+            		 paramValues[i] = value;
+            		 if(parameters[i].getType().toString().equals("class java.lang.Integer"))
+            		    	paramValues[i] =Integer.parseInt(value) ;
+            		 continue;
+            	 }
+            	
+            		 
+             }
+             
+        	 
+         }
+         
+         for(Object prm : paramValues){
+         }
+         
+         try {
+            Object object = method.invoke(this.controllerMap.get(url), paramValues);//第一个参数是method所对应的实例 在ioc容器中
+            if(method.isAnnotationPresent(MyResponsebody.class)){
+         	   if(!(null == object)){
+         		   
+             	   resp.getWriter().write( JSONObject.toJSONString(object) );  
+                }
+            }else {
+         	   Type type =  method.getGenericReturnType();
+         	   if("class java.lang.String".equals(type.toString())){
+         		   outputTheFile(req,resp,object.toString());        		   
+         	   }
+            
+            }
+            
+         } catch (Exception e) {
+             e.printStackTrace();
+         }
+    	
     }
     
     private void getBasicConfig(ServletConfig config){
@@ -203,7 +310,7 @@ public class MyDispatcherServlet extends HttpServlet{
                 Class<?> clazz =Class.forName(className);
                if(clazz.isAnnotationPresent(MyController.class)){
                     ioc.put(toLowerFirstWord(clazz.getSimpleName()),clazz.newInstance());
-                }else if(clazz.isAnnotationPresent(MyService.class)){
+               }else if(clazz.isAnnotationPresent(MyService.class)){
                 	String serviceName = clazz.getAnnotation(MyService.class).value();
                 	if(serviceName.equals("") || serviceName == null){
                 		ioc.put(toLowerFirstWord(clazz.getSimpleName()),clazz.newInstance());
@@ -330,5 +437,4 @@ public class MyDispatcherServlet extends HttpServlet{
     	
     }
     
-
 }

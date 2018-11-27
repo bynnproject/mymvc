@@ -1,6 +1,8 @@
 # mymvc
 手写一个简单的mvc框架，包括ioc，aop
 * 借用了别人写好的一些东西，顺便修改了一些自己认为不足的部分以及添加一些自己觉得不完善的东西
+## csdn博客
+* [手写mvc](https://blog.csdn.net/BeamCSDN/article/details/84563784)
 
 ## 需要完成的功能
 * aop （未开始）
